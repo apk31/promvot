@@ -119,7 +119,7 @@ app.post('/vote', async (req, res) => {
     }
 
     // 4. Validate user token
-    const userRes = await client.query('SELECT id, is_active FROM users WHERE token = $1 FOR UPDATE', [token]);
+    const userRes = await client.query('SELECT id, is_active FROM users WHERE magic_token = $1 FOR UPDATE', [token]);
     if (userRes.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Invalid token.' });

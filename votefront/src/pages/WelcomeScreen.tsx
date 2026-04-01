@@ -21,7 +21,6 @@ export default function WelcomeScreen({ onComplete, studentId }: WelcomeScreenPr
     return () => clearTimeout(nextStepTimer);
   }, [step, onComplete]);
 
-  // Added py-4 to the gradient class to ensure the background stretches tall enough
   const waxGradientText = "bg-gradient-to-r from-red-900 via-red-800 to-amber-500 bg-clip-text text-transparent py-4";
 
   return (
@@ -38,7 +37,6 @@ export default function WelcomeScreen({ onComplete, studentId }: WelcomeScreenPr
             to { stroke-dashoffset: 0; }
           }
           
-          /* FIX: Expanded the polygon's Y-axis to -50% and 150% so it never chops the top or bottom of tall letters! */
           .animate-wipe {
             clip-path: polygon(0 -50%, 0 -50%, 0 150%, 0 150%);
             animation: wipe 2s ease-in-out forwards;
@@ -76,27 +74,27 @@ export default function WelcomeScreen({ onComplete, studentId }: WelcomeScreenPr
                 className="animate-draw"
               />
             </svg>
-            <h2 className={`text-4xl md:text-5xl font-['Borel'] mt-[-10px] ${waxGradientText} opacity-0 animate-[fadeIn_1s_ease-in-out_1.5s_forwards] leading-relaxed`}>
+            <h2 className={`text-4xl md:text-5xl font-['Borel'] mt-[-10px] ${waxGradientText} opacity-0 animate-[fadeIn_1s_ease-in-out_1.5s_forwards] leading-relaxed whitespace-nowrap`}>
               {studentId}
             </h2>
           </>
         )}
       </div>
 
-      {/* STEP 1: Welcome To (Added leading-relaxed to give the font box more vertical room) */}
+      {/* STEP 1: Welcome To (Added text-5xl for mobile and whitespace-nowrap) */}
       <div className={`absolute inset-0 flex flex-col items-center justify-center w-full h-full transition-all duration-500 ease-in-out ${step === 1 ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
         {step >= 1 && (
-          <h1 className={`text-6xl md:text-7xl font-['Borel'] ${waxGradientText} animate-wipe px-4 leading-relaxed`}>
+          <h1 className={`text-5xl sm:text-6xl md:text-7xl font-['Borel'] ${waxGradientText} animate-wipe px-4 leading-relaxed whitespace-nowrap`}>
             Welcome to
           </h1>
         )}
       </div>
 
-      {/* STEP 2: Prom Voting Area */}
+      {/* STEP 2: Prom Voting Area (Added text-5xl and wrapped "Prom Voting" in whitespace-nowrap) */}
       <div className={`absolute inset-0 flex flex-col items-center justify-center w-full h-full transition-all duration-500 ease-in-out ${step === 2 ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
         {step >= 2 && (
-          <h1 className={`text-6xl md:text-7xl font-['Borel'] text-center ${waxGradientText} animate-wipe px-4 leading-relaxed`}>
-            Prom Voting <br /> Area
+          <h1 className={`text-5xl sm:text-6xl md:text-7xl font-['Borel'] text-center ${waxGradientText} animate-wipe px-4 leading-relaxed`}>
+            <span className="whitespace-nowrap">Prom Voting</span> <br /> Area
           </h1>
         )}
       </div>

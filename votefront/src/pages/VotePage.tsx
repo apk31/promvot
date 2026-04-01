@@ -19,7 +19,7 @@ export default function VotePage() {
   useEffect(() => {
     const verifyToken = async () => {
       try {
-        const response = await fetch(`import.meta.env.VITE_API_URL || 'http://localhost:5000'/verify-token/${token}`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/verify-token/${token}`);
         const data = await response.json();
 
         if (response.status === 403) {
@@ -191,12 +191,12 @@ export default function VotePage() {
   // --- THEME FIX: ALREADY VOTED SCREEN ---
   if (status === 'already_voted') {
     return (
-      <div className="min-h-screen bg-[#FCFBF8] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-red-900 flex items-center justify-center p-4">
         <div className="bg-white max-w-md w-full rounded-3xl shadow-xl p-8 text-center border border-stone-200">
-          <div className="w-20 h-20 bg-stone-100 text-stone-400 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl">
+          <div className="w-20 h-20 bg-stone-200 text-stone-400 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl">
             🗳️
           </div>
-          <h1 className="text-2xl font-black text-stone-800 mb-2">Already Voted</h1>
+          <h1 className="text-3xl font-['Cormorant_Infant'] font-bold text-stone-800 mb-2">Already Voted</h1>
           <p className="text-stone-500 mb-8 font-medium">
             This link has already been used to cast a ballot.
           </p>

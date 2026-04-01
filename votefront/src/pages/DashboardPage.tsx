@@ -118,7 +118,7 @@ export default function DashboardPage() {
   const filteredUsers = selectedClass === 'ALL' ? pendingUsers : pendingUsers.filter(s => s.startsWith(selectedClass));
 
   return (
-    <div className="min-h-screen bg-[#FCFBF8] p-4 md:p-8">
+    <div className="min-h-screen bg-[#e4dcc2] p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
         
         {/* MOBILE OPTIMIZED HEADER */}
@@ -136,7 +136,7 @@ export default function DashboardPage() {
             </div>
             
             <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-              <button onClick={fetchDashboardData} className="flex-1 md:flex-none px-5 py-2.5 bg-stone-100 text-stone-700 rounded-xl font-bold text-sm active:bg-stone-200">
+              <button onClick={fetchDashboardData} className="flex-1 md:flex-none px-5 py-2.5 bg-stone-100 text-stone-700 rounded-xl font-bold text-sm hover:bg-stone-200 active:bg-stone-400">
                 🔄 Sync
               </button>
               <button onClick={handleLogout} className="flex-1 md:flex-none px-5 py-2.5 bg-red-50 text-red-900 rounded-xl font-bold text-sm hover:bg-red-100 border border-red-100">
