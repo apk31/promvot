@@ -32,7 +32,7 @@ export default function VotingCarousel({ categories, onSubmit }: Props) {
   // --- REVIEW SCREEN ---
   if (isReviewing) {
     return (
-      <div className="max-w-md mx-auto p-4 pb-24 min-h-[100dvh] bg-[#FCFBF8] pt-6 sm:pt-8">
+      <div className="max-w-md mx-auto p-4 pb-24 min-h-[100dvh] bg-[#e4dcc2] pt-6 sm:pt-8">
         <h2 className="text-4xl font-['Cormorant_Infant'] text-red-900 mb-6 text-center font-bold">Review Your Vote</h2>
         <div className="space-y-3 sm:space-y-4">
           {categories.map((cat) => {
@@ -62,7 +62,7 @@ export default function VotingCarousel({ categories, onSubmit }: Props) {
             );
           })}
         </div>
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-stone-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-[#e4dcc2]/90 backdrop-blur-md border-t border-stone-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
           <div className="max-w-md mx-auto">
             <button 
               onClick={() => {
@@ -85,7 +85,7 @@ export default function VotingCarousel({ categories, onSubmit }: Props) {
   // --- VOTING STEP SCREEN ---
   return (
     // Replaced min-h-screen with min-h-[100dvh] so the mobile URL bar doesn't cut off the footer
-    <div className="max-w-md mx-auto p-4 flex flex-col min-h-[100dvh] bg-[#FCFBF8] pt-4 sm:pt-8">
+    <div className="max-w-md mx-auto p-4 flex flex-col min-h-[100dvh] bg-[#e4dcc2] pt-4 sm:pt-8">
       
       {/* Reduced bottom margin on mobile */}
       <div className="mb-4 sm:mb-8">
@@ -167,7 +167,7 @@ export default function VotingCarousel({ categories, onSubmit }: Props) {
             <button 
               disabled={currentStep === 0}
               onClick={() => setCurrentStep(currentStep - 1)}
-              className="px-4 sm:px-6 py-3.5 sm:py-4 rounded-xl font-bold text-stone-400 disabled:opacity-0 active:bg-stone-200 transition-colors"
+              className="px-4 sm:px-6 py-3.5 sm:py-4 rounded-xl font-bold text-stone-700 disabled:opacity-0 active:bg-stone-200 transition-colors"
             >
               ← Back
             </button>

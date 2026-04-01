@@ -21,7 +21,8 @@ const setupDatabase = async () => {
           student_id VARCHAR(20) UNIQUE NOT NULL,
           magic_token VARCHAR(100) UNIQUE NOT NULL,
           is_active BOOLEAN DEFAULT TRUE,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          used_at TIMESTAMP
       );
 
       CREATE TABLE categories (
@@ -107,6 +108,19 @@ const setupDatabase = async () => {
       (9, 'Chelso Aurelio Purnomo');
     `);
     console.log('Nominees seeded.');
+    
+    // 5. Insert Test Users (disable this in production!)
+      for (let i = 0; i < 11; i++) {
+      for (let j = 0; j < 5; j++) {
+        const studentId = `TEST${i.toString().padStart(2, '0')}-${j.toString().padStart(2, '0')}`;
+        const magicToken = `test${i.toString().padStart(2, '0')}-token-${j.toString().padStart(2, '0')}`;
+        await pool.query(
+          'INSERT INTO users (student_id, magic_token) VALUES ($1, $2) ON CONFLICT (student_id) DO NOTHING',
+        [studentId, magicToken]
+        );
+        console.log(`Test user created! Magic link will be: /vote/${magicToken}`);  
+      }
+    }
 
     console.log('Database setup perfectly completed! 🚀');
     process.exit(0);

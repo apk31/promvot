@@ -16,6 +16,7 @@ export default function AdminLogin() {
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/admin/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Include cookies for session management
         body: JSON.stringify({ password })
       });
 
@@ -23,7 +24,7 @@ export default function AdminLogin() {
 
       if (response.ok) {
         // Save the VIP badge to the browser's local storage
-        localStorage.setItem('adminToken', data.token);
+        // localStorage.setItem('adminToken', data.token);
         navigate('/admin/dashboard'); // Teleport to the dashboard
       } else {
         setError(data.error || 'Login failed');

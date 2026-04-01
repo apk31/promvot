@@ -5,13 +5,13 @@ const cors = require('cors');
 const pool = require('./db');
 const helmet = require('helmet'); // <-- 1. Import Helmet
 const rateLimit = require('express-rate-limit'); // <-- 2. Import Rate Limiter
+const cookieParser = require('cookie-parser');
 
 const app = express();
 const port = process.env.PORT || 5000;
 
-app.use(cors());
-app.use(express.json());
-app.set('trust proxy', 1);
+// app.use(cors());
+// app.use(express.json());
 // ==========================================
 // SECURITY MIDDLEWARE
 // ==========================================
@@ -23,10 +23,13 @@ const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
     ? 'https://vote.penguinwalk.my.id' 
     : 'http://localhost:5174', // Keeps local dev working
+    credentials: true, // Allow cookies to be sent
   optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use(cookieParser());
+app.set('trust proxy', 1);
 
 // 3. The Anti-Brute Force Bouncer
 const loginLimiter = rateLimit({
@@ -37,10 +40,28 @@ const loginLimiter = rateLimit({
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
+// 4. Token Verification Limiter (Prevent brute-forcing magic links)
+const tokenLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30, // Max 30 attempts per IP
+  message: { error: 'Too many verification attempts. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// 5. Vote Submission Limiter (Prevent spamming the database)
+const voteLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // Max 10 attempts per IP
+  message: { error: 'Too many voting attempts. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // ==========================================
 // 1. VERIFY MAGIC LINK
 // ==========================================
-app.get('/verify-token/:token', async (req, res) => {
+app.get('/verify-token/:token', tokenLimiter, async (req, res) => {
   try {
     const { token } = req.params;
     const result = await pool.query('SELECT id, student_id, is_active FROM users WHERE magic_token = $1', [token]);
@@ -88,7 +109,7 @@ app.get('/categories', async (req, res) => {
 // ==========================================
 // 3. SUBMIT VOTE (The Ironclad Transaction) (Strict Validation)
 // ==========================================
-app.post('/vote', async (req, res) => {
+app.post('/vote', voteLimiter, async (req, res) => { // <-- P1 FIX: Added voteLimiter
   const { token, votes } = req.body;
 
   // 1. Basic array check
@@ -106,8 +127,7 @@ app.post('/vote', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // 3. NEW: Strict "No Abstain" Check
-    // Count exactly how many categories exist in the database
+    // 3. Strict "No Abstain" Check
     const categoryCountRes = await client.query('SELECT COUNT(*) FROM categories');
     const totalCategories = parseInt(categoryCountRes.rows[0].count);
 
@@ -117,6 +137,14 @@ app.post('/vote', async (req, res) => {
         error: `Incomplete ballot. You must vote in all ${totalCategories} categories.` 
       });
     }
+
+    // --- P0 FIX START: Fetch valid nominee-category pairings ---
+    const validNomineesRes = await client.query('SELECT id, category_id FROM nominees');
+    const validNomineeMap = new Map();
+    validNomineesRes.rows.forEach(row => {
+      validNomineeMap.set(row.id, row.category_id);
+    });
+    // --- P0 FIX END ---
 
     // 4. Validate user token
     const userRes = await client.query('SELECT id, is_active FROM users WHERE magic_token = $1 FOR UPDATE', [token]);
@@ -135,14 +163,23 @@ app.post('/vote', async (req, res) => {
 
     // 5. Insert votes safely
     for (const vote of votes) {
+      
+      // --- P0 FIX START: Validate the pairing ---
+      const expectedCategoryId = validNomineeMap.get(vote.nominee_id);
+      if (expectedCategoryId !== vote.category_id) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Invalid nominee for the specified category. Ballot rejected.' });
+      }
+      // --- P0 FIX END ---
+
       await client.query(
         'INSERT INTO ballot_votes (ballot_id, category_id, nominee_id) VALUES ($1, $2, $3)',
         [ballotId, vote.category_id, vote.nominee_id]
       );
     }
 
-    // Burn the token
-    await client.query('UPDATE users SET is_active = false WHERE id = $1', [userId]);
+    // Burn the token AND log the timestamp!
+    await client.query('UPDATE users SET is_active = false, used_at = CURRENT_TIMESTAMP WHERE id = $1', [userId]);
     await client.query('COMMIT');
 
     res.json({ message: 'Vote successfully recorded!' });
@@ -154,25 +191,23 @@ app.post('/vote', async (req, res) => {
     client.release();
   }
 });
-
 // ==========================================
 // 4. DEV ROUTE: GENERATE TEST USER
 // ==========================================
 // (Remove this before real voting starts!)
 // app.post('/dev/generate-user', async (req, res) => {
 //   try {
-//     for (let i = 0; i < 10; i++) {
-//       const studentId = `TEST-${i.toString().padStart(2, '0')}`;
-//       const magicToken = `test-token-${i.toString().padStart(2, '0')}`;
-
-    
-//     await pool.query(
-//       'INSERT INTO users (student_id, magic_token) VALUES ($1, $2) ON CONFLICT (student_id) DO NOTHING',
-//       [studentId, magicToken]
-//     );
-//     res.json({ message: `Test user created! Magic link will be: /vote/${magicToken}` });
-//   }
-    
+//     for (let i = 0; i < 11; i++) {
+//       for (let j = 0; j < 5; j++) {
+//         const studentId = `TEST${i.toString().padStart(2, '0')}-${j.toString().padStart(2, '0')}`;
+//         const magicToken = `test${i.toString().padStart(2, '0')}-token-${j.toString().padStart(2, '0')}`;
+//         await pool.query(
+//           'INSERT INTO users (student_id, magic_token) VALUES ($1, $2) ON CONFLICT (student_id) DO NOTHING',
+//         [studentId, magicToken]
+//         );
+//         res.json({ message: `Test user created! Magic link will be: /vote/${magicToken}` });  
+//       }
+//     }
 //   } catch (err) {
 //     res.status(500).json({ error: err.message });
 //   }
@@ -193,7 +228,16 @@ app.post('/admin/login', loginLimiter, (req, res) => {
 
     if (password === process.env.ADMIN_PASSWORD) {
       const token = jwt.sign({ role: 'admin' }, process.env.JWT_SECRET, { expiresIn: '12h' });
-      res.json({ token });
+      
+      // SET THE HTTP-ONLY COOKIE HERE
+    res.cookie('adminToken', token, {
+      httpOnly: true, // Invisible to JavaScript (XSS Protection)
+      secure: process.env.NODE_ENV === 'production', // Requires HTTPS in prod
+      sameSite: 'lax', // Protects against CSRF
+      maxAge: 12 * 60 * 60 * 1000 // 12 hours
+    });
+      
+      res.json({ message: 'Login successful' });
     } else {
       res.status(401).json({ error: 'Incorrect password.' });
     }
@@ -208,7 +252,7 @@ app.post('/admin/login', loginLimiter, (req, res) => {
 // ==========================================
 const verifyAdmin = (req, res, next) => {
   // Check if the frontend sent the token in the headers
-  const token = req.headers.authorization?.split(' ')[1];
+  const token = req.cookies.adminToken;
   
   if (!token) {
     return res.status(401).json({ error: 'Access denied. No token provided.' });
@@ -223,6 +267,10 @@ const verifyAdmin = (req, res, next) => {
   }
 };
 
+app.post('/admin/logout', (req, res) => {
+  res.clearCookie('adminToken');
+  res.json({ message: 'Logged out' });
+});
 // ==========================================
 // 7. ADMIN DASHBOARD (Results) 
 // ==========================================
@@ -288,6 +336,23 @@ app.get('/admin/voters', verifyAdmin, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch voter status.' });
+  }
+});
+// ==========================================
+// 9. ADMIN DASHBOARD (Detailed Voter Logs)
+// ==========================================
+app.get('/admin/voters/detail', verifyAdmin, async (req, res) => {
+  try {
+    const query = `
+      SELECT student_id, is_active, used_at 
+      FROM users 
+      ORDER BY student_id ASC;
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch voter details.' });
   }
 });
 

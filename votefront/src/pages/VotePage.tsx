@@ -93,7 +93,7 @@ export default function VotePage() {
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen bg-[#FCFBF8] flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-[#e4dcc2] flex flex-col items-center justify-center">
         {/* THEME FIX: Burgundy Spinner */}
         <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-red-900 mb-4"></div>
         <p className="text-red-900 font-bold tracking-wide animate-pulse">Verifying secure link...</p>
@@ -107,7 +107,7 @@ export default function VotePage() {
 
   if (status === 'confirm') {
     return (
-      <div className="min-h-screen bg-[#FCFBF8] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#e4dcc2] flex items-center justify-center p-4">
         <div className="bg-white max-w-md w-full rounded-3xl shadow-xl p-8 text-center border border-stone-200">
           <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
             <span className="text-4xl">👋</span>
@@ -141,7 +141,7 @@ export default function VotePage() {
   if (status === 'voting') {
     if (categories.length === 0) {
       return (
-        <div className="min-h-screen bg-[#FCFBF8] flex flex-col items-center justify-center">
+        <div className="min-h-screen bg-[#e4dcc2] flex flex-col items-center justify-center">
           {/* THEME FIX: Burgundy Spinner */}
           <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-red-900 mb-4"></div>
           <p className="text-red-900 font-bold">Loading your ballot...</p>
@@ -150,9 +150,9 @@ export default function VotePage() {
     }
     
     return (
-      <div className="min-h-screen bg-[#FCFBF8]">
+      <div className="min-h-screen bg-[#e4dcc2]">
         {isSubmitting ? (
-          <div className="fixed inset-0 bg-[#FCFBF8]/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
+          <div className="fixed inset-0 bg-[#e4dcc2]/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
             {/* THEME FIX: Burgundy Spinner for Submission */}
             <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-red-900 mb-4"></div>
             <h2 className="text-3xl font-['Cormorant_Infant'] font-bold text-red-900">Casting your vote...</h2>
@@ -217,9 +217,9 @@ export default function VotePage() {
   // --- THEME FIX: ERROR SCREEN ---
   if (status === 'error') {
     return (
-      <div className="min-h-screen bg-[#FCFBF8] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#e4dcc2] flex items-center justify-center p-4">
         <div className="bg-white max-w-md w-full rounded-3xl shadow-xl p-8 text-center border border-red-100">
-          <div className="w-20 h-20 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl">
+          <div className="w-20 h-20 bg-red-600 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl">
             ⚠️
           </div>
           <h1 className="text-2xl font-black text-stone-800 mb-2">Oops!</h1>

@@ -24,7 +24,7 @@ export default function WelcomeScreen({ onComplete, studentId }: WelcomeScreenPr
   const waxGradientText = "bg-gradient-to-r from-red-900 via-red-800 to-amber-500 bg-clip-text text-transparent py-4";
 
   return (
-    <div className="fixed inset-0 bg-[#FCFBF8] flex items-center justify-center z-50 overflow-hidden">
+    <div className="fixed inset-0 bg-[#e4dcc2] flex items-center justify-center z-50 overflow-hidden">
       
       <style>
         {`
