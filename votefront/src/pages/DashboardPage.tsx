@@ -31,10 +31,7 @@ interface VoterDetail {
 }
 
 const WIB_TIMEZONE = 'Asia/Jakarta';
-const WIB_OFFSET_HOURS = 7;
 const TIMESTAMP_WITH_ZONE_RE = /(?:Z|[+-]\d{2}:?\d{2})$/i;
-const TIMESTAMP_PARTS_RE =
-  /^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,6})?)?)?$/;
 const voteTimestampFormatter = new Intl.DateTimeFormat('en-US', {
   timeZone: WIB_TIMEZONE,
   dateStyle: 'medium',
@@ -43,30 +40,11 @@ const voteTimestampFormatter = new Intl.DateTimeFormat('en-US', {
 
 function parseVoteTimestamp(timestamp: string) {
   const normalized = timestamp.trim().replace(' ', 'T');
+  const isoCandidate = TIMESTAMP_WITH_ZONE_RE.test(normalized)
+    ? normalized
+    : `${normalized}Z`;
+  const parsedDate = new Date(isoCandidate);
 
-  if (TIMESTAMP_WITH_ZONE_RE.test(normalized)) {
-    const zonedDate = new Date(normalized);
-    return Number.isNaN(zonedDate.getTime()) ? null : zonedDate;
-  }
-
-  const match = normalized.match(TIMESTAMP_PARTS_RE);
-  if (!match) {
-    return null;
-  }
-
-  const [, year, month, day, hour = '00', minute = '00', second = '00'] = match;
-
-  // Treat timezone-less database timestamps as WIB wall-clock values.
-  const utcTimestamp = Date.UTC(
-    Number(year),
-    Number(month) - 1,
-    Number(day),
-    Number(hour) - WIB_OFFSET_HOURS,
-    Number(minute),
-    Number(second)
-  );
-
-  const parsedDate = new Date(utcTimestamp);
   return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
 }
 
@@ -96,13 +74,19 @@ export default function DashboardPage() {
   const [detailStatusFilter, setDetailStatusFilter] = useState<'ALL' | 'VOTED' | 'PENDING'>('ALL'); 
   
   const intervalRef = useRef<number | null>(null);
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+  const redirectToLogin = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setData(null);
+    setVoterData(null);
+    setVoterDetails(null);
+    setError('');
+    navigate('/admin/login');
+  };
 
   const fetchDashboardData = async () => {
-    // const token = localStorage.getItem('adminToken');
-
     try {
-      // const headers = { 'Authorization': `Bearer ${token}` };
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       const fetchOptions = { credentials: 'include' as RequestCredentials };
       
       const [resResults, resVoters, resDetails] = await Promise.all([
@@ -111,10 +95,12 @@ export default function DashboardPage() {
         fetch(`${apiUrl}/admin/voters/detail`, fetchOptions)
       ]);
 
-      if (resResults.status === 401 || resResults.status === 403) {
-        if (intervalRef.current) clearInterval(intervalRef.current);
-        localStorage.removeItem('adminToken');
-        navigate('/admin/login');
+      const authFailed = [resResults, resVoters, resDetails].some(
+        (response) => response.status === 401 || response.status === 403
+      );
+
+      if (authFailed) {
+        redirectToLogin();
         return;
       }
 
@@ -136,21 +122,17 @@ export default function DashboardPage() {
   }, []);
 
   const handleLogout = async () => {
-    // 1. Stop the auto-refresh
     if (intervalRef.current) clearInterval(intervalRef.current);
 
     try {
-      // 2. Call the backend to destroy the HttpOnly cookie
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       await fetch(`${apiUrl}/admin/logout`, {
         method: 'POST',
-        credentials: 'include' // <-- CRITICAL: Tells the browser to send the cookie so the backend can clear it
+        credentials: 'include'
       });
     } catch (err) {
       console.error('Logout request failed:', err);
     }
 
-    // 3. Teleport the user back to the login screen
     navigate('/admin/login');
   };
 
@@ -206,10 +188,24 @@ export default function DashboardPage() {
               <h1 className="text-3xl md:text-4xl font-black text-red-900">Promnight 2026 Vote Dashboard</h1>
               <div className="flex items-center gap-2 mt-2">
                 <div className="relative flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                  <span
+                    className={`animate-ping absolute inline-flex h-full w-full rounded-full ${
+                      error ? 'bg-amber-400' : 'bg-green-400'
+                    } opacity-75`}
+                  ></span>
+                  <span
+                    className={`relative inline-flex rounded-full h-3 w-3 ${
+                      error ? 'bg-amber-500' : 'bg-green-500'
+                    }`}
+                  ></span>
                 </div>
-                <p className="text-green-600 font-bold text-sm tracking-wide uppercase">Live Tracking</p>
+                <p
+                  className={`font-bold text-sm tracking-wide uppercase ${
+                    error ? 'text-amber-600' : 'text-green-600'
+                  }`}
+                >
+                  {error ? 'Reconnect Pending' : 'Live Tracking'}
+                </p>
               </div>
             </div>
             
@@ -243,6 +239,12 @@ export default function DashboardPage() {
               📋 Detailed Logs
             </button>
           </div>
+
+          {error && (
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
+              {error}
+            </div>
+          )}
         </div>
 
         {/* TAB 1: LIVE RESULTS */}

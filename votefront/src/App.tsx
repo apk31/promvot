@@ -9,7 +9,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<DefaultPage />} />
-        <Route path="/vote/:token" element={<VotePage />} />
+        <Route path="/vote" element={<VotePage />} />
         
         {/* Admin Routes */}
         <Route path="/admin/login" element={<AdminLogin />} />

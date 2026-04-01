@@ -20,7 +20,7 @@ const escapeCsvValue = (value) => {
 };
 
 const buildVotingLink = (token) => {
-  return `${votingLinkBaseUrl}/${token}`;
+  return `${votingLinkBaseUrl}#${encodeURIComponent(token)}`;
 };
 
 const setupDatabase = async () => {

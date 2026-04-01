@@ -1,14 +1,26 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import WelcomeScreen from './WelcomeScreen';
 import VotingCarousel from './VotingCarousel';
 import type { Category, VoteSelection } from '../types';
 
 type VoteStatus = 'loading' | 'error' | 'welcome' | 'confirm' | 'voting' | 'success' | 'already_voted';
 
+const getTokenFromHash = (hash: string) => {
+  if (!hash.startsWith('#') || hash.length <= 1) {
+    return '';
+  }
+
+  try {
+    return decodeURIComponent(hash.slice(1));
+  } catch {
+    return hash.slice(1);
+  }
+};
+
 export default function VotePage() {
-  const { token } = useParams<{ token: string }>(); 
   const navigate = useNavigate();
+  const [token] = useState(() => getTokenFromHash(window.location.hash));
   
   const [status, setStatus] = useState<VoteStatus>('loading'); 
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -19,7 +31,11 @@ export default function VotePage() {
   useEffect(() => {
     const verifyToken = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/verify-token/${token}`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/verify-token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token })
+        });
         const data = await response.json();
 
         if (response.status === 403) {
@@ -44,6 +60,9 @@ export default function VotePage() {
 
     if (token) {
       verifyToken();
+    } else {
+      setErrorMessage('Missing or invalid voting link.');
+      setStatus('error');
     }
   }, [token]);
 

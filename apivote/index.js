@@ -10,6 +10,8 @@ const cookieParser = require('cookie-parser');
 
 const app = express();
 const port = process.env.PORT || 5000;
+const ADMIN_COOKIE_NAME = 'adminToken';
+const ADMIN_COOKIE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 
 const hasAdminAuthConfig = () => {
   return Boolean(process.env.JWT_SECRET && process.env.ADMIN_PASSWORD);
@@ -17,6 +19,29 @@ const hasAdminAuthConfig = () => {
 
 const hashMagicToken = (token) => {
   return crypto.createHash('sha256').update(token).digest('hex');
+};
+
+const TIMESTAMP_WITH_ZONE_RE = /(?:Z|[+-]\d{2}:?\d{2})$/i;
+
+const getAdminCookieOptions = () => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax',
+  path: '/'
+});
+
+const normalizeUtcTimestamp = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = String(value).trim().replace(' ', 'T');
+  const isoCandidate = TIMESTAMP_WITH_ZONE_RE.test(normalized)
+    ? normalized
+    : `${normalized}Z`;
+  const parsedDate = new Date(isoCandidate);
+
+  return Number.isNaN(parsedDate.getTime()) ? normalized : parsedDate.toISOString();
 };
 
 // app.use(cors());
@@ -70,9 +95,14 @@ const voteLimiter = rateLimit({
 // ==========================================
 // 1. VERIFY MAGIC LINK
 // ==========================================
-app.get('/verify-token/:token', tokenLimiter, async (req, res) => {
+app.post('/verify-token', tokenLimiter, async (req, res) => {
   try {
-    const { token } = req.params;
+    const { token } = req.body ?? {};
+
+    if (typeof token !== 'string' || token.length === 0) {
+      return res.status(400).json({ error: 'Invalid token.' });
+    }
+
     const tokenHash = hashMagicToken(token);
     const result = await pool.query(
       'SELECT id, student_id, is_active FROM users WHERE magic_token_hash = $1',
@@ -249,15 +279,12 @@ app.post('/admin/login', loginLimiter, (req, res) => {
 
     if (password === process.env.ADMIN_PASSWORD) {
       const token = jwt.sign({ role: 'admin' }, process.env.JWT_SECRET, { expiresIn: '12h' });
-      
-      // SET THE HTTP-ONLY COOKIE HERE
-    res.cookie('adminToken', token, {
-      httpOnly: true, // Invisible to JavaScript (XSS Protection)
-      secure: process.env.NODE_ENV === 'production', // Requires HTTPS in prod
-      sameSite: 'lax', // Protects against CSRF
-      maxAge: 12 * 60 * 60 * 1000 // 12 hours
-    });
-      
+
+      res.cookie(ADMIN_COOKIE_NAME, token, {
+        ...getAdminCookieOptions(),
+        maxAge: ADMIN_COOKIE_MAX_AGE_MS
+      });
+
       res.json({ message: 'Login successful' });
     } else {
       res.status(401).json({ error: 'Incorrect password.' });
@@ -272,24 +299,32 @@ app.post('/admin/login', loginLimiter, (req, res) => {
 // 6. THE BOUNCER (Authentication Middleware)
 // ==========================================
 const verifyAdmin = (req, res, next) => {
-  // Check if the frontend sent the token in the headers
-  const token = req.cookies.adminToken;
-  
+  if (!hasAdminAuthConfig()) {
+    return res.status(500).json({ error: 'Server configuration error.' });
+  }
+
+  const token = req.cookies[ADMIN_COOKIE_NAME];
+
   if (!token) {
     return res.status(401).json({ error: 'Access denied. No token provided.' });
   }
 
   try {
-    // Verify the token is real and hasn't expired
-    jwt.verify(token, process.env.JWT_SECRET);
-    next(); // Let them through to the dashboard data
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (!payload || payload.role !== 'admin') {
+      return res.status(403).json({ error: 'Insufficient privileges.' });
+    }
+
+    req.admin = payload;
+    next();
   } catch (err) {
     res.status(403).json({ error: 'Invalid or expired token.' });
   }
 };
 
 app.post('/admin/logout', (req, res) => {
-  res.clearCookie('adminToken');
+  res.clearCookie(ADMIN_COOKIE_NAME, getAdminCookieOptions());
   res.json({ message: 'Logged out' });
 });
 // ==========================================
@@ -365,12 +400,17 @@ app.get('/admin/voters', verifyAdmin, async (req, res) => {
 app.get('/admin/voters/detail', verifyAdmin, async (req, res) => {
   try {
     const query = `
-      SELECT student_id, is_active, used_at 
+      SELECT student_id, is_active, used_at::text AS used_at
       FROM users 
       ORDER BY student_id ASC;
     `;
     const result = await pool.query(query);
-    res.json(result.rows);
+    res.json(
+      result.rows.map((row) => ({
+        ...row,
+        used_at: normalizeUtcTimestamp(row.used_at)
+      }))
+    );
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch voter details.' });

@@ -23,9 +23,7 @@ export default function AdminLogin() {
       const data = await response.json();
 
       if (response.ok) {
-        // Save the VIP badge to the browser's local storage
-        // localStorage.setItem('adminToken', data.token);
-        navigate('/admin/dashboard'); // Teleport to the dashboard
+        navigate('/admin/dashboard');
       } else {
         setError(data.error || 'Login failed');
       }
