@@ -3,12 +3,39 @@ const jwt = require('jsonwebtoken');
 const express = require('express');
 const cors = require('cors');
 const pool = require('./db');
+const helmet = require('helmet'); // <-- 1. Import Helmet
+const rateLimit = require('express-rate-limit'); // <-- 2. Import Rate Limiter
 
 const app = express();
 const port = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
+
+// ==========================================
+// SECURITY MIDDLEWARE
+// ==========================================
+// 1. Helmet hides the "X-Powered-By: Express" header and secures connections
+app.use(helmet());
+
+// 2. Strict CORS: Only allow your official frontend domain to make requests
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? 'https://vote.penguinwalk.my.id' 
+    : 'http://localhost:5174', // Keeps local dev working
+  optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
+app.use(express.json());
+
+// 3. The Anti-Brute Force Bouncer
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes memory
+  max: 5, // Limit each IP to 5 attempts per 15 minutes
+  message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
 
 // ==========================================
 // 1. VERIFY MAGIC LINK
@@ -135,15 +162,15 @@ app.post('/dev/generate-user', async (req, res) => {
 });
 
 // ==========================================
-// 5. ADMIN LOGIN ROUTE
+// 5. ADMIN LOGIN ROUTE (Now Protected)
 // ==========================================
-app.post('/admin/login', (req, res) => {
+// Pass the `loginLimiter` middleware right before the route logic
+app.post('/admin/login', loginLimiter, (req, res) => {
   try {
     const { password } = req.body;
     
-    // Safety check: Is the .env loaded?
     if (!process.env.JWT_SECRET) {
-      console.error("CRITICAL ERROR: JWT_SECRET is missing from your .env file!");
+      console.error("CRITICAL ERROR: JWT_SECRET is missing!");
       return res.status(500).json({ error: 'Server configuration error.' });
     }
 

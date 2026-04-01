@@ -19,7 +19,7 @@ export default function VotePage() {
   useEffect(() => {
     const verifyToken = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/verify-token/${token}`);
+        const response = await fetch(`import.meta.env.VITE_API_URL || 'http://localhost:5000'/verify-token/${token}`);
         const data = await response.json();
 
         if (response.status === 403) {
@@ -49,7 +49,7 @@ export default function VotePage() {
 
   useEffect(() => {
     if (status === 'voting') {
-      fetch('http://localhost:5000/categories')
+      fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/categories`)
         .then(res => res.json())
         .then(data => setCategories(data))
         .catch(() => {
@@ -62,7 +62,7 @@ export default function VotePage() {
   const handleVoteSubmit = async (finalVotes: VoteSelection[]) => {
     setIsSubmitting(true);
     try {
-      const response = await fetch('http://localhost:5000/vote', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/vote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, votes: finalVotes })

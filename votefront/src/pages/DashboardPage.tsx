@@ -41,8 +41,8 @@ export default function DashboardPage() {
     try {
       const headers = { 'Authorization': `Bearer ${token}` };
       const [resResults, resVoters] = await Promise.all([
-        fetch('http://localhost:5000/admin/results', { headers }),
-        fetch('http://localhost:5000/admin/voters', { headers })
+        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/admin/results`, { headers }),
+        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/admin/voters`, { headers })
       ]);
       if (resResults.status === 401 || resResults.status === 403) {
         localStorage.removeItem('adminToken');
