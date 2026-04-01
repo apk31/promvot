@@ -159,24 +159,24 @@ app.post('/vote', async (req, res) => {
 // 4. DEV ROUTE: GENERATE TEST USER
 // ==========================================
 // (Remove this before real voting starts!)
-app.post('/dev/generate-user', async (req, res) => {
-  try {
-    for (let i = 0; i < 10; i++) {
-      const studentId = `TEST-${i.toString().padStart(2, '0')}`;
-      const magicToken = `test-token-${i.toString().padStart(2, '0')}`;
+// app.post('/dev/generate-user', async (req, res) => {
+//   try {
+//     for (let i = 0; i < 10; i++) {
+//       const studentId = `TEST-${i.toString().padStart(2, '0')}`;
+//       const magicToken = `test-token-${i.toString().padStart(2, '0')}`;
 
     
-    await pool.query(
-      'INSERT INTO users (student_id, magic_token) VALUES ($1, $2) ON CONFLICT (student_id) DO NOTHING',
-      [studentId, magicToken]
-    );
-    res.json({ message: `Test user created! Magic link will be: /vote/${magicToken}` });
-  }
+//     await pool.query(
+//       'INSERT INTO users (student_id, magic_token) VALUES ($1, $2) ON CONFLICT (student_id) DO NOTHING',
+//       [studentId, magicToken]
+//     );
+//     res.json({ message: `Test user created! Magic link will be: /vote/${magicToken}` });
+//   }
     
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// });
 
 // ==========================================
 // 5. ADMIN LOGIN ROUTE (Now Protected)
