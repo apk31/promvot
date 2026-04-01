@@ -11,7 +11,7 @@ const port = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
-
+app.set('trust proxy', 1);
 // ==========================================
 // SECURITY MIDDLEWARE
 // ==========================================
@@ -86,32 +86,54 @@ app.get('/categories', async (req, res) => {
 });
 
 // ==========================================
-// 3. SUBMIT VOTE (The Ironclad Transaction)
+// 3. SUBMIT VOTE (The Ironclad Transaction) (Strict Validation)
 // ==========================================
 app.post('/vote', async (req, res) => {
-  const { token, votes } = req.body; 
-  // votes expects an array: [{ category_id: 1, nominee_id: 3 }, ...]
+  const { token, votes } = req.body;
 
-  const client = await pool.connect(); // Grab a dedicated client for the transaction
+  // 1. Basic array check
+  if (!votes || !Array.isArray(votes) || votes.length === 0) {
+    return res.status(400).json({ error: 'Invalid vote payload.' });
+  }
 
+  // 2. Prevent duplicate categories (e.g., sending [{cat: 1, nom: 2}, {cat: 1, nom: 3}])
+  const uniqueCategories = new Set(votes.map(v => v.category_id));
+  if (uniqueCategories.size !== votes.length) {
+    return res.status(400).json({ error: 'Duplicate category votes detected.' });
+  }
+
+  const client = await pool.connect();
   try {
-    await client.query('BEGIN'); // START TRANSACTION
+    await client.query('BEGIN');
 
-    // 1. Double check token and get user ID
-    const userRes = await client.query('SELECT id, is_active FROM users WHERE magic_token = $1 FOR UPDATE', [token]);
-    if (userRes.rows.length === 0 || !userRes.rows[0].is_active) {
-      throw new Error('Invalid or expired token.');
+    // 3. NEW: Strict "No Abstain" Check
+    // Count exactly how many categories exist in the database
+    const categoryCountRes = await client.query('SELECT COUNT(*) FROM categories');
+    const totalCategories = parseInt(categoryCountRes.rows[0].count);
+
+    if (votes.length !== totalCategories) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ 
+        error: `Incomplete ballot. You must vote in all ${totalCategories} categories.` 
+      });
     }
-    const userId = userRes.rows[0].id;
 
-    // 2. Create the Ballot
-    const ballotRes = await client.query(
-      'INSERT INTO ballots (user_id) VALUES ($1) RETURNING id', 
-      [userId]
-    );
+    // 4. Validate user token
+    const userRes = await client.query('SELECT id, is_active FROM users WHERE token = $1 FOR UPDATE', [token]);
+    if (userRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Invalid token.' });
+    }
+    if (!userRes.rows[0].is_active) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'You have already voted.' });
+    }
+
+    const userId = userRes.rows[0].id;
+    const ballotRes = await client.query('INSERT INTO ballots (user_id) VALUES ($1) RETURNING id', [userId]);
     const ballotId = ballotRes.rows[0].id;
 
-    // 3. Insert all 9 votes
+    // 5. Insert votes safely
     for (const vote of votes) {
       await client.query(
         'INSERT INTO ballot_votes (ballot_id, category_id, nominee_id) VALUES ($1, $2, $3)',
@@ -119,22 +141,17 @@ app.post('/vote', async (req, res) => {
       );
     }
 
-    // 4. Burn the magic link so it can't be used again
+    // Burn the token
     await client.query('UPDATE users SET is_active = false WHERE id = $1', [userId]);
+    await client.query('COMMIT');
 
-    await client.query('COMMIT'); // SAVE EVERYTHING
-    res.json({ success: true, message: 'Vote successfully cast!' });
-
+    res.json({ message: 'Vote successfully recorded!' });
   } catch (err) {
-    await client.query('ROLLBACK'); // IF ANYTHING FAILS, UNDO EVERYTHING
-    
-    // Check if it was our unique constraint catching a double vote
-    if (err.code === '23505') { 
-        return res.status(400).json({ error: 'You have already voted.' });
-    }
-    res.status(400).json({ error: err.message });
+    await client.query('ROLLBACK');
+    console.error('Voting Error:', err);
+    res.status(500).json({ error: 'Failed to submit vote.' });
   } finally {
-    client.release(); // Return client to the pool
+    client.release();
   }
 });
 

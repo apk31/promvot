@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState,useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 interface NomineeResult {
@@ -31,25 +31,51 @@ export default function DashboardPage() {
   const [voterData, setVoterData] = useState<VoterData | null>(null);
   const [error, setError] = useState('');
   const [selectedClass, setSelectedClass] = useState<string>('ALL');
+  const intervalRef = useRef<number | null>(null);
+
+// NEW: Function to check if the JWT has expired locally
+  const isTokenExpired = (token: string) => {
+    try {
+      // Decode the middle payload portion of the JWT
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      // JWT exp is in seconds, Date.now() is in milliseconds
+      return payload.exp * 1000 < Date.now();
+    } catch (e) {
+      return true; // If it fails to parse, assume it's invalid/expired
+    }
+  };
 
   const fetchDashboardData = async () => {
     const token = localStorage.getItem('adminToken');
-    if (!token) {
+    
+    // NEW: Check expiration before even talking to the backend
+    if (!token || isTokenExpired(token)) {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      localStorage.removeItem('adminToken');
       navigate('/admin/login');
       return;
     }
+
     try {
       const headers = { 'Authorization': `Bearer ${token}` };
+      
+      // Use your dynamic API URL for production
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      
       const [resResults, resVoters] = await Promise.all([
-        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/admin/results`, { headers }),
-        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/admin/voters`, { headers })
+        fetch(`${apiUrl}/admin/results`, { headers }),
+        fetch(`${apiUrl}/admin/voters`, { headers })
       ]);
+
       if (resResults.status === 401 || resResults.status === 403) {
+        if (intervalRef.current) clearInterval(intervalRef.current);
         localStorage.removeItem('adminToken');
         navigate('/admin/login');
         return;
       }
+
       if (!resResults.ok || !resVoters.ok) throw new Error('Failed to fetch');
+      
       setData(await resResults.json());
       setVoterData(await resVoters.json());
       setError('');
@@ -60,11 +86,15 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
-    const interval = setInterval(fetchDashboardData, 10000);
-    return () => clearInterval(interval);
+    intervalRef.current = window.setInterval(fetchDashboardData, 10000);
+    
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, []);
 
   const handleLogout = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
     localStorage.removeItem('adminToken');
     navigate('/admin/login');
   };
