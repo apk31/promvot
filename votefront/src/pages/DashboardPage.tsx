@@ -30,6 +30,59 @@ interface VoterDetail {
   used_at: string | null;
 }
 
+const WIB_TIMEZONE = 'Asia/Jakarta';
+const WIB_OFFSET_HOURS = 7;
+const TIMESTAMP_WITH_ZONE_RE = /(?:Z|[+-]\d{2}:?\d{2})$/i;
+const TIMESTAMP_PARTS_RE =
+  /^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,6})?)?)?$/;
+const voteTimestampFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: WIB_TIMEZONE,
+  dateStyle: 'medium',
+  timeStyle: 'short',
+});
+
+function parseVoteTimestamp(timestamp: string) {
+  const normalized = timestamp.trim().replace(' ', 'T');
+
+  if (TIMESTAMP_WITH_ZONE_RE.test(normalized)) {
+    const zonedDate = new Date(normalized);
+    return Number.isNaN(zonedDate.getTime()) ? null : zonedDate;
+  }
+
+  const match = normalized.match(TIMESTAMP_PARTS_RE);
+  if (!match) {
+    return null;
+  }
+
+  const [, year, month, day, hour = '00', minute = '00', second = '00'] = match;
+
+  // Treat timezone-less database timestamps as WIB wall-clock values.
+  const utcTimestamp = Date.UTC(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour) - WIB_OFFSET_HOURS,
+    Number(minute),
+    Number(second)
+  );
+
+  const parsedDate = new Date(utcTimestamp);
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+}
+
+function formatVoteTimestamp(timestamp: string | null) {
+  if (!timestamp) {
+    return <span className="text-stone-300 italic">Not yet submitted</span>;
+  }
+
+  const parsedDate = parseVoteTimestamp(timestamp);
+  if (!parsedDate) {
+    return <span className="text-red-500 italic">Invalid timestamp</span>;
+  }
+
+  return `${voteTimestampFormatter.format(parsedDate)} WIB`;
+}
+
 export default function DashboardPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'results' | 'voters' | 'details'>('results');
@@ -345,30 +398,7 @@ export default function DashboardPage() {
                 </thead>
                 <tbody>
                   {filteredDetails.map((user) => {
-                    // Force the database timestamp to parse as UTC, then convert to Asia/Jakarta (WIB)
-                    let formattedDate = <span className="text-stone-300 italic">Not yet submitted</span>;
-                    if (user.used_at) {
-                      // const utcDateString = user.used_at.endsWith('Z') ? user.used_at : `${user.used_at}Z`;
-                      // formattedDate = <>{new Date(utcDateString).toLocaleString('en-US', {
-                      //   timeZone: 'Asia/Jakarta',
-                      //   dateStyle: 'medium',
-                      //   timeStyle: 'short'
-                      // })} WIB</>;
-                      const dateObj = new Date(user.used_at);
-  
-                      // Force add 7 hours (WIB offset) to the date object
-                      dateObj.setHours(dateObj.getHours() + 7);
-
-  formattedDate = (
-    <>
-      {dateObj.toLocaleString('en-US', {
-        dateStyle: 'medium',
-        timeStyle: 'short'
-      })} WIB
-    </>
-  );
-                      // console.log("Original:", user.used_at, "Converted:", utcDateString);
-                    }
+                    const formattedDate = formatVoteTimestamp(user.used_at);
 
                     return (
                       <tr key={user.student_id} className="border-b border-stone-100 hover:bg-stone-50/50 transition-colors">

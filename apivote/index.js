@@ -1,4 +1,5 @@
 require('dotenv').config();
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const express = require('express');
 const cors = require('cors');
@@ -9,6 +10,14 @@ const cookieParser = require('cookie-parser');
 
 const app = express();
 const port = process.env.PORT || 5000;
+
+const hasAdminAuthConfig = () => {
+  return Boolean(process.env.JWT_SECRET && process.env.ADMIN_PASSWORD);
+};
+
+const hashMagicToken = (token) => {
+  return crypto.createHash('sha256').update(token).digest('hex');
+};
 
 // app.use(cors());
 // app.use(express.json());
@@ -64,7 +73,11 @@ const voteLimiter = rateLimit({
 app.get('/verify-token/:token', tokenLimiter, async (req, res) => {
   try {
     const { token } = req.params;
-    const result = await pool.query('SELECT id, student_id, is_active FROM users WHERE magic_token = $1', [token]);
+    const tokenHash = hashMagicToken(token);
+    const result = await pool.query(
+      'SELECT id, student_id, is_active FROM users WHERE magic_token_hash = $1',
+      [tokenHash]
+    );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Invalid magic link.' });
@@ -112,6 +125,10 @@ app.get('/categories', async (req, res) => {
 app.post('/vote', voteLimiter, async (req, res) => { // <-- P1 FIX: Added voteLimiter
   const { token, votes } = req.body;
 
+  if (typeof token !== 'string' || token.length === 0) {
+    return res.status(400).json({ error: 'Invalid token.' });
+  }
+
   // 1. Basic array check
   if (!votes || !Array.isArray(votes) || votes.length === 0) {
     return res.status(400).json({ error: 'Invalid vote payload.' });
@@ -147,7 +164,11 @@ app.post('/vote', voteLimiter, async (req, res) => { // <-- P1 FIX: Added voteLi
     // --- P0 FIX END ---
 
     // 4. Validate user token
-    const userRes = await client.query('SELECT id, is_active FROM users WHERE magic_token = $1 FOR UPDATE', [token]);
+    const tokenHash = hashMagicToken(token);
+    const userRes = await client.query(
+      'SELECT id, is_active FROM users WHERE magic_token_hash = $1 FOR UPDATE',
+      [tokenHash]
+    );
     if (userRes.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Invalid token.' });
@@ -221,8 +242,8 @@ app.post('/admin/login', loginLimiter, (req, res) => {
   try {
     const { password } = req.body;
     
-    if (!process.env.JWT_SECRET) {
-      console.error("CRITICAL ERROR: JWT_SECRET is missing!");
+    if (!hasAdminAuthConfig()) {
+      console.error('CRITICAL ERROR: Admin auth environment variables are missing.');
       return res.status(500).json({ error: 'Server configuration error.' });
     }
 
@@ -357,5 +378,8 @@ app.get('/admin/voters/detail', verifyAdmin, async (req, res) => {
 });
 
 app.listen(port, () => {
+  if (!hasAdminAuthConfig()) {
+    console.warn('Warning: admin authentication is disabled until JWT_SECRET and ADMIN_PASSWORD are configured.');
+  }
   console.log(`apivote server running on port ${port}`);
 });
