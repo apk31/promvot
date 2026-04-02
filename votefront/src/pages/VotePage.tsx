@@ -19,6 +19,7 @@ const getTokenFromHash = (hash: string) => {
 };
 
 export default function VotePage() {
+  
   const navigate = useNavigate();
   const [token] = useState(() => getTokenFromHash(window.location.hash));
   
@@ -27,6 +28,24 @@ export default function VotePage() {
   const [studentId, setStudentId] = useState<string>('');
   const [categories, setCategories] = useState<Category[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    switch (status) {
+      case 'success':
+        document.title = "Vote Recorded | Promnight 2026 Vote Area";
+        break;
+      case 'already_voted':
+        document.title = "Token Expired | Promnight 2026 Vote Area";
+        break;
+      case 'error':
+        document.title = "Invalid Token | Promnight 2026 Vote Area";
+        break;
+      default:
+        // Covers 'loading', 'welcome', 'confirm', and 'voting'
+        document.title = "Promnight 2026 Vote Area";
+        break;
+    }
+  }, [status]);
 
   useEffect(() => {
     const verifyToken = async () => {
@@ -184,71 +203,123 @@ export default function VotePage() {
     );
   }
 
-  // --- THEME FIX: PREMIUM SUCCESS SCREEN ---
+// --- THEME FIX: PREMIUM SUCCESS SCREEN (ENVELOPE) ---
   if (status === 'success') {
     return (
       <div className="min-h-screen bg-red-900 flex items-center justify-center p-4">
-        <div className="bg-[#FCFBF8] max-w-md w-full rounded-3xl shadow-2xl p-10 text-center animate-[scale-in_0.3s_ease-out]">
-          <div className="w-24 h-24 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-6 text-5xl shadow-inner border-2 border-amber-200">
+        <div className="relative bg-[#FCFBF8] max-w-md w-full rounded-3xl shadow-2xl text-center pt-[150px] pb-10 px-8 mt-12 animate-[scale-in_0.3s_ease-out]">
+          
+          {/* --- ENVELOPE FLAP EFFECT --- */}
+          <div className="absolute inset-0 pointer-events-none rounded-3xl overflow-hidden">
+            <svg 
+              viewBox="0 0 100 100" 
+              preserveAspectRatio="none" 
+              className="absolute top-0 left-0 w-full h-[120px] drop-shadow-[0_4px_4px_rgba(0,0,0,0.05)]"
+            >
+              {/* Slightly darker beige fill for the flap to contrast the #FCFBF8 card */}
+              <polygon points="-10,-10 110,-10 50,100" fill="#f0ede1" stroke="#e4dcc2" strokeWidth="0.5" />
+            </svg>
+          </div>
+
+          {/* --- GOLD WAX SEAL --- */}
+          <div className="absolute top-[120px] left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-24 h-24 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-5xl font-black shadow-inner border-[4px] border-[#FCFBF8] ring-1 ring-amber-200">
             ✓
           </div>
-          <h1 className="text-4xl font-['Cormorant_Infant'] font-bold text-red-900 mb-4 py-2">Vote Cast!</h1>
-          <p className="text-stone-600 mb-8 text-lg font-medium leading-relaxed">
-            Thank you for participating. Your choices have been securely locked in and sealed.
-          </p>
-          <button 
-            onClick={() => window.location.replace('/')} 
-            className="w-full bg-red-900 text-amber-500 py-4 rounded-xl font-bold text-lg shadow-lg active:scale-95 transition-transform"
-          >
-            Return to Home
-          </button>
+          {/* --------------------------- */}
+
+          <div className="relative z-10"><br />
+            <h1 className="text-4xl font-['Cormorant_Infant'] font-bold text-red-900 mb-4 py-2">Vote Cast!</h1>
+            <p className="text-stone-600 mb-8 text-lg font-medium leading-relaxed">
+              Thank you for participating. Your choices have been securely locked in and sealed.
+            </p>
+            <button 
+              onClick={() => window.location.replace('/')} 
+              className="w-full bg-red-900 text-amber-500 py-4 rounded-xl font-bold text-lg shadow-lg active:scale-95 transition-transform"
+            >
+              Return to Home
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  // --- THEME FIX: ALREADY VOTED SCREEN ---
+  // --- THEME FIX: ALREADY VOTED SCREEN (ENVELOPE) ---
   if (status === 'already_voted') {
     return (
       <div className="min-h-screen bg-red-900 flex items-center justify-center p-4">
-        <div className="bg-white max-w-md w-full rounded-3xl shadow-xl p-8 text-center border border-stone-200">
-          <div className="w-20 h-20 bg-stone-200 text-stone-400 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl">
+        <div className="relative bg-white max-w-md w-full rounded-3xl shadow-xl text-center border border-stone-200 pt-[150px] pb-10 px-8 mt-12">
+          
+          {/* --- ENVELOPE FLAP EFFECT --- */}
+          <div className="absolute inset-0 pointer-events-none rounded-3xl overflow-hidden">
+            <svg 
+              viewBox="0 0 100 100" 
+              preserveAspectRatio="none" 
+              className="absolute top-0 left-0 w-full h-[120px] drop-shadow-[0_4px_4px_rgba(0,0,0,0.05)]"
+            >
+              <polygon points="-10,-10 110,-10 50,100" fill="#f7f7f6" stroke="#e7e5e4" strokeWidth="0.5" />
+            </svg>
+          </div>
+
+          {/* --- GREY WAX SEAL --- */}
+          <div className="absolute top-[120px] left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-20 h-20 bg-stone-100 text-stone-500 rounded-full flex items-center justify-center text-4xl shadow-md border-[4px] border-white ring-1 ring-stone-200">
             🗳️
           </div>
-          <h1 className="text-3xl font-['Cormorant_Infant'] font-bold text-stone-800 mb-2">Already Voted</h1>
-          <p className="text-stone-500 mb-8 font-medium">
-            This link has already been used to cast a ballot.
-          </p>
-          <p className="text-stone-400 mb-8 font-medium italic">
-            Each student may only vote once.
-          </p>
-          <button 
-            onClick={() => navigate('/')}
-            className="w-full bg-orange-200 text-stone-700 py-4 rounded-xl font-bold text-lg hover:bg-orange-300 active:bg-orange-400 transition-colors"
-          >
-            Go Back
-          </button>
+          {/* --------------------------- */}
+
+          <div className="relative z-10"><br />
+            <h1 className="text-3xl font-['Cormorant_Infant'] font-bold text-stone-800 mb-2">Already Voted</h1>
+            <p className="text-stone-500 mb-8 font-medium">
+              This link has already been used to cast a ballot.
+            </p>
+            <p className="text-stone-400 mb-8 font-medium italic">
+              Each student may only vote once.
+            </p>
+            <button 
+              onClick={() => navigate('/')}
+              className="w-full bg-orange-200 text-stone-700 py-4 rounded-xl font-bold text-lg hover:bg-orange-300 active:bg-orange-400 transition-colors"
+            >
+              Go Back
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  // --- THEME FIX: ERROR SCREEN ---
+  // --- THEME FIX: ERROR SCREEN (ENVELOPE) ---
   if (status === 'error') {
     return (
       <div className="min-h-screen bg-[#e4dcc2] flex items-center justify-center p-4">
-        <div className="bg-white max-w-md w-full rounded-3xl shadow-xl p-8 text-center border border-red-100">
-          <div className="w-20 h-20 bg-red-600 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl">
+        <div className="relative bg-white max-w-md w-full rounded-3xl shadow-xl text-center border border-red-100 pt-[150px] pb-10 px-8 mt-12">
+          
+          {/* --- ENVELOPE FLAP EFFECT --- */}
+          <div className="absolute inset-0 pointer-events-none rounded-3xl overflow-hidden">
+            <svg 
+              viewBox="0 0 100 100" 
+              preserveAspectRatio="none" 
+              className="absolute top-0 left-0 w-full h-[120px] drop-shadow-[0_4px_4px_rgba(0,0,0,0.05)]"
+            >
+              <polygon points="-10,-10 110,-10 50,100" fill="#f7f7f6" stroke="#e7e5e4" strokeWidth="0.5" />
+            </svg>
+          </div>
+
+          {/* --- RED WAX SEAL --- */}
+          <div className="absolute top-[120px] left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-20 h-20 bg-red-600 text-white rounded-full flex items-center justify-center text-4xl shadow-md border-[4px] border-white ring-1 ring-red-200">
             ⚠️
           </div>
-          <h1 className="text-2xl font-black text-stone-800 mb-2">Oops!</h1>
-          <p className="text-stone-600 mb-8 font-medium">{errorMessage}</p>
-          <button 
-            onClick={() => navigate('/')}
-            className="w-full bg-red-900 text-white py-4 rounded-xl font-bold text-lg active:bg-red-950 transition-colors shadow-lg"
-          >
-            Return Home
-          </button>
+          {/* --------------------------- */}
+
+          <div className="relative z-10"><br />
+            <h1 className="text-3xl font-['Cormorant_Infant'] font-bold text-stone-800 mb-2">Whoopps!</h1>
+            <p className="text-stone-600 mb-8 font-medium">{errorMessage}</p>
+            <button 
+              onClick={() => navigate('/')}
+              className="w-full bg-red-900 text-white py-4 rounded-xl font-bold text-lg active:bg-red-950 transition-colors shadow-lg"
+            >
+              Return Home
+            </button>
+          </div>
         </div>
       </div>
     );

@@ -5,7 +5,7 @@ const pool = require('./db');
 
 const exportDir = path.join(__dirname, 'exports');
 const exportFile = path.join(exportDir, 'voter-links.csv');
-const votingLinkBaseUrl = (process.env.VOTING_LINK_BASE_URL || 'https://vote.penguinwalk.my.id/vote').replace(/\/+$/, '');
+const votingLinkBaseUrl = (process.env.VOTING_LINK_BASE_URL || 'http://localhost:5174/vote').replace(/\/+$/, '');
 
 const generateMagicToken = () => {
   return crypto.randomBytes(16).toString('base64url');

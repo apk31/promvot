@@ -323,6 +323,11 @@ const verifyAdmin = (req, res, next) => {
   }
 };
 
+app.get('/admin/verify', verifyAdmin, (req, res) => {
+  // If it passes verifyAdmin, they have a valid cookie!
+  res.json({ authenticated: true });
+});
+
 app.post('/admin/logout', (req, res) => {
   res.clearCookie(ADMIN_COOKIE_NAME, getAdminCookieOptions());
   res.json({ message: 'Logged out' });

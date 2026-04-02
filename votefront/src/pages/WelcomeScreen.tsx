@@ -16,7 +16,7 @@ export default function WelcomeScreen({ onComplete, studentId }: WelcomeScreenPr
 
     const nextStepTimer = setTimeout(() => {
       setStep((prev) => prev + 1);
-    }, 3500);
+    }, 3000);
 
     return () => clearTimeout(nextStepTimer);
   }, [step, onComplete]);

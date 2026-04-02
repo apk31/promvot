@@ -1,11 +1,40 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function AdminLogin() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true); // <-- Added state
   const navigate = useNavigate();
+
+  // --- THE SILENT CHECK ---
+  useEffect(() => {
+    document.title = "Login | Promnight 2026 Vote Area";
+
+    const checkExistingLogin = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/admin/verify`, {
+          method: 'GET',
+          credentials: 'include' // Send the HttpOnly cookie if it exists
+        });
+
+        if (response.ok) {
+          // Cookie is valid! Teleport to dashboard
+          navigate('/admin/dashboard', { replace: true });
+        } else {
+          // No valid cookie, show the login form
+          setIsCheckingAuth(false);
+        }
+      } catch (err) {
+        // Network error, show the login form just in case
+        setIsCheckingAuth(false);
+      }
+    };
+
+    checkExistingLogin();
+  }, [navigate]);
+  // ------------------------
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,7 +45,7 @@ export default function AdminLogin() {
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/admin/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // Include cookies for session management
+        credentials: 'include', 
         body: JSON.stringify({ password })
       });
 
@@ -34,9 +63,18 @@ export default function AdminLogin() {
     }
   };
 
+  // Prevent the login form from flashing while we check the cookie
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-500"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-      <div className="bg-white max-w-sm w-full rounded-3xl shadow-2xl p-8 border border-gray-100">
+      <div className="bg-white max-w-sm w-full rounded-3xl shadow-2xl p-8 border border-gray-100 animate-[fadeIn_0.3s_ease-out]">
         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">
           🔒
         </div>

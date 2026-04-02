@@ -3,6 +3,7 @@ import DefaultPage from './pages/DefaultPage';
 import VotePage from './pages/VotePage';
 import DashboardPage from './pages/DashboardPage';
 import AdminLogin from './pages/AdminLogin'; // <-- Import the new page
+import NotFoundPage from './pages/NotFoundPage';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         {/* Admin Routes */}
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<DashboardPage />} /> 
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   );

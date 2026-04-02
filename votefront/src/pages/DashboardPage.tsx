@@ -62,6 +62,11 @@ function formatVoteTimestamp(timestamp: string | null) {
 }
 
 export default function DashboardPage() {
+
+  useEffect(() => {
+    document.title = "Dashboard | Promnight 2026 Vote Area";
+  }, []);
+
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'results' | 'voters' | 'details'>('results');
   const [data, setData] = useState<DashboardData | null>(null);
