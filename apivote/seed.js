@@ -5,7 +5,30 @@ const pool = require('./db');
 
 const exportDir = path.join(__dirname, 'exports');
 const exportFile = path.join(exportDir, 'voter-links.csv');
-const votingLinkBaseUrl = (process.env.VOTING_LINK_BASE_URL || 'http://localhost:5174/vote').replace(/\/+$/, '');
+
+const getVotingLinkBaseUrl = () => {
+  const rawBaseUrl = process.env.VOTING_LINK_BASE_URL;
+
+  if (typeof rawBaseUrl !== 'string' || rawBaseUrl.trim() === '') {
+    throw new Error('VOTING_LINK_BASE_URL must be configured before generating voter links.');
+  }
+
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(rawBaseUrl);
+  } catch {
+    throw new Error('VOTING_LINK_BASE_URL must be a valid absolute URL.');
+  }
+
+  if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+    throw new Error('VOTING_LINK_BASE_URL must use http or https.');
+  }
+
+  parsedUrl.hash = '';
+  return parsedUrl.toString().replace(/\/+$/, '');
+};
+
+const votingLinkBaseUrl = getVotingLinkBaseUrl();
 
 const generateMagicToken = () => {
   return crypto.randomBytes(16).toString('base64url');

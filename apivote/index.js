@@ -44,6 +44,15 @@ const normalizeUtcTimestamp = (value) => {
   return Number.isNaN(parsedDate.getTime()) ? normalized : parsedDate.toISOString();
 };
 
+const parseConfiguredDate = (value) => {
+  if (typeof value !== 'string' || value.trim() === '') {
+    return null;
+  }
+
+  const parsedDate = new Date(value);
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+};
+
 // app.use(cors());
 // app.use(express.json());
 // ==========================================
@@ -92,10 +101,55 @@ const voteLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const getVotingStatus = () => {
+  const now = new Date();
+  const startTime = parseConfiguredDate(process.env.VOTING_START_TIME);
+  const endTime = parseConfiguredDate(process.env.VOTING_END_TIME);
+  const hasValidWindow = Boolean(startTime && endTime && startTime < endTime);
+
+  return {
+    hasValidWindow,
+    isBeforeStart: hasValidWindow ? now < startTime : false,
+    isAfterEnd: hasValidWindow ? now > endTime : false,
+    isOpen: hasValidWindow ? now >= startTime && now <= endTime : false,
+    startTime: startTime ? startTime.toISOString() : null,
+    endTime: endTime ? endTime.toISOString() : null
+  };
+};
+
+// Endpoint for React to check the status
+app.get('/api/voting-status', (req, res) => {
+  const status = getVotingStatus();
+
+  if (!status.hasValidWindow) {
+    return res.status(500).json({ error: 'Voting schedule is not configured correctly.' });
+  }
+
+  res.json(status);
+});
+
+// Middleware to protect voter login and vote submissions
+const enforceVotingWindow = (req, res, next) => {
+  const status = getVotingStatus();
+
+  if (!status.hasValidWindow) {
+    return res.status(500).json({ error: 'Voting schedule is not configured correctly.' });
+  }
+  
+  if (status.isBeforeStart) {
+    return res.status(403).json({ message: "Voting has not started yet." });
+  }
+  if (status.isAfterEnd) {
+    return res.status(403).json({ message: "Voting has already closed." });
+  }
+  
+  next(); // Time is valid, proceed to the actual controller!
+};
+
 // ==========================================
 // 1. VERIFY MAGIC LINK
 // ==========================================
-app.post('/verify-token', tokenLimiter, async (req, res) => {
+app.post('/verify-token', tokenLimiter,enforceVotingWindow, async (req, res) => {
   try {
     const { token } = req.body ?? {};
 
@@ -152,7 +206,7 @@ app.get('/categories', async (req, res) => {
 // ==========================================
 // 3. SUBMIT VOTE (The Ironclad Transaction) (Strict Validation)
 // ==========================================
-app.post('/vote', voteLimiter, async (req, res) => { // <-- P1 FIX: Added voteLimiter
+app.post('/vote', voteLimiter,enforceVotingWindow, async (req, res) => { // <-- P1 FIX: Added voteLimiter
   const { token, votes } = req.body;
 
   if (typeof token !== 'string' || token.length === 0) {
